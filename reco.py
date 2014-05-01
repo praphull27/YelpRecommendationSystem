@@ -19,9 +19,9 @@ def getJsonArray(filename):
     jsonarr = jsonstr.split( '\n' )
     return jsonarr
 
-jsonarr_users = getJsonArray("dataset/yelp_academic_dataset_user.json")
-jsonarr_reviews = getJsonArray("dataset/yelp_academic_dataset_review.json")
-jsonarr_business = getJsonArray("dataset/yelp_academic_dataset_business.json")
+jsonarr_users = getJsonArray("Dataset/yelp_academic_dataset_user.json")
+jsonarr_reviews = getJsonArray("Dataset/yelp_academic_dataset_review.json")
+jsonarr_business = getJsonArray("Dataset/yelp_academic_dataset_business.json")
 
 i=0
 users = []
