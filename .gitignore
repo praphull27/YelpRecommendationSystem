@@ -52,5 +52,7 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+venv
+*.pyc
 
 Dataset/
