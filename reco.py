@@ -1,35 +1,27 @@
-__author__ = 'aravind'
+__author__ = 'Aravindan, Praphull, Vaibhav'
 
 import json
 import ply
 import re
 import numpy as np
 from numpy import matrix
-from numpy import linalg
+from numpy import linalg as LA
 
 def unique_list(seq):
     seen = set()
     seen_add = seen.add
     return [ x for x in seq if x not in seen and not seen_add(x)]
 
-def getJsonArray(filename):
-    jsonstr = open(filename).read()
-    p = re.compile( '}\s * {' )
-    jsonstr = p.sub( '}\n{', jsonstr )
-    jsonarr = jsonstr.split( '\n' )
-    return jsonarr
+jsonarr_users = open("Dataset/yelp_academic_dataset_user.json").readlines()
+jsonarr_reviews = open("Dataset/yelp_academic_dataset_review.json").readlines()
+jsonarr_business = open("Dataset/yelp_academic_dataset_business.json").readlines()
 
-jsonarr_users = getJsonArray("Dataset/yelp_academic_dataset_user.json")
-jsonarr_reviews = getJsonArray("Dataset/yelp_academic_dataset_review.json")
-jsonarr_business = getJsonArray("Dataset/yelp_academic_dataset_business.json")
-
-i=0
 users = []
 businesses = []
 
 for jsonstr in jsonarr_users:
     if(jsonstr != ""):
-        jsonobj = json.loads( jsonstr )
+        jsonobj = json.loads(jsonstr)
         users.append(jsonobj["user_id"])
 
 users = unique_list(users)
@@ -40,34 +32,34 @@ for jsonstr in jsonarr_business:
         businesses.append(jsonobj["business_id"])
 
 businesses = unique_list(businesses)
-user_index_dict = { }
-business_index_dict = { }
 
-j=0
-for user in users:
-    user_index_dict[user] = j
-    j = j + 1
+rating_matrix = np.zeros((len(users),len(businesses)), dtype=int)
 
-j = 0
+for jsonrev in jsonarr_reviews:
+    if(jsonrev != ""):
+        jsonobj = json.loads(jsonrev)
+        rating_matrix[users.index(jsonobj["user_id"])][businesses.index(jsonobj["business_id"])] = jsonobj["stars"]
 
-for business in businesses:
-    business_index_dict[business] = j
-    j = j + 1
-
-
-for jsonstr in jsonarr_reviews:
-    if(jsonstr != ""):
-        i = i+ 1
-        jsonobj = json.loads( jsonstr )
-        #print json.dumps(jsonobj["user_id"] + "  " + jsonobj["business_id"] + "  counts : " + str(jsonobj["votes"]["funny"] + jsonobj["votes"]["useful"] + jsonobj["votes"]["cool"]))
-        #users.append(jsonobj["user_id"])
-        #businesses.append(jsonobj["business_id"])
-        #print json.dumps(jsonobj)
+def low_rank_approx(SVD=None, A=None, r=1):
+    if not SVD:
+        SVD = LA.svd(A, full_matrices=False)
+    u, s, v = SVD
+    Ar = np.zeros((len(u), len(v)))
+    for i in xrange(r):
+        Ar += s[i] * np.outer(u.T[i], v[i])
+    return Ar
 
 
-print(len(users))
-print(len(businesses))
+R = rating_matrix
+u, s, v = LA.svd(R, full_matrices=False)
+(m,n) = R.shape
+W = np.zeros((m, n), dtype=int)
+for j in xrange(m):
+    W[j] = [1 if z > 0 else 0 for z in R[j]]
 
-matrix_temp = np.zeros((len(users),len(businesses)), dtype=int)
-print(matrix_temp[1,1])
-print("Number of reviews : "+ str(i))
+for i in range(1, min(m,n)-1):
+    Ar = low_rank_approx((u, s, v), r=i)
+    EAr = np.dot(W,Ar)
+    Er = np.subtract(R, EAr)
+    FN = LA.norm(Er, 'fro')
+    print "FN for rank " + str(i) + " is " + str(FN) + "\n"
