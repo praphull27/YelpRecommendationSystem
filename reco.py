@@ -2,6 +2,7 @@ __author__ = 'Aravindan, Praphull, Vaibhav'
 
 import json
 import gc
+from scipy import linalg as LAS
 import numpy as np
 from numpy import linalg as LA
 
@@ -63,7 +64,7 @@ gc.collect()
 
 print "Test Before SVD"
 
-u, s, v = LA.svd(rating_matrix, full_matrices=False)
+u, s, v = LAS.svd(rating_matrix, full_matrices=False)
 
 print "Test After SVD"
 
