@@ -5,8 +5,6 @@ import gc
 from scipy import linalg as LAS
 import numpy as np
 from numpy import linalg as LA
-import csv
-import scipy.io
 
 def unique_list(seq):
     seen = set()
@@ -19,6 +17,7 @@ def low_rank_approx(u, s, v, r):
         Ar += s[i] * np.outer(u.T[i], v[i])
     return Ar
 
+gc.enable()
 
 '''
 jsonarr_users = open("Dataset/yelp_academic_dataset_user.json").readlines()
@@ -48,6 +47,7 @@ for jsonstr in open("Dataset/yelp_academic_dataset_business.json").readlines():
 
 businesses = unique_list(businesses)
 
+gc.collect()
 
 print "Test Before Matrix Creation"
 
@@ -60,21 +60,26 @@ for jsonstr in open("Dataset/yelp_academic_dataset_review.json").readlines():
 
 print "Test After Matrix Creation"
 
-#scipy.io.savemat('rating_matrix.mat', mdict={'rating_matrix': rating_matrix})
+gc.collect()
+
+print "Test Before SVD"
+
+u, s, v = LAS.svd(rating_matrix, full_matrices=False)
+
+print "Test After SVD"
 
 (m,n) = rating_matrix.shape
-ratingDict = {}
 W = np.zeros((m, n), dtype=int)
 for j in xrange(m):
     W[j] = [1 if z > 0 else 0 for z in rating_matrix[j]]
-    sum = W[j].sum()
-    if sum in ratingDict:
-        ratingDict[sum] = ratingDict[sum] + 1
-    else:
-        ratingDict[sum] = 1
 
 print "Weight Mtrix Creation Successful"
 
-for j in xrange(1,100):
-    if j in ratingDict:
-        print "Users with", j, " ratings = ", ratingDict[j]
+for i in range(1, min(m,n)-1):
+    Ar = low_rank_approx(u, s, v, i)
+    EAr = np.dot(W,Ar)
+    Er = np.subtract(rating_matrix, EAr)
+    FN = LA.norm(Er, 'fro')
+    print "FN for rank " + str(i) + " is " + str(FN)
+    gc.collect()
+
