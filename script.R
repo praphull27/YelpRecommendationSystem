@@ -1,11 +1,9 @@
-install.packages("rjson")
-install.packages("irlba")
-install.packages("MASS")
 library("rjson")
 library("irlba")
-library("MASS")
 
-businessDatasetFile <- "Dataset/yelp_academic_dataset_business.json"
+cleanMem <- function(n=10) { for (i in 1:n) gc() }
+
+businessDatasetFile <- "/Users/praphull/gitrepos/YelpRecommendationSystem/Dataset/yelp_academic_dataset_business.json"
 businessDatasetFileHandle <- file(businessDatasetFile,open="r")
 businessDatasetFileLines <- readLines(businessDatasetFileHandle)
 numberOfBusinesses <- length(businessDatasetFileLines)
@@ -15,8 +13,11 @@ for (i in 1:numberOfBusinesses) {
 	businesses[i] <- businessJSON$business_id
 }
 close(businessDatasetFileHandle)
+closeAllConnections()
+remove('businessDatasetFile', 'businessDatasetFileHandle', 'businessDatasetFileLines', 'businessJSON')
+cleanMem()
 
-userDatasetFile <- "Dataset/yelp_academic_dataset_user.json"
+userDatasetFile <- "/Users/praphull/gitrepos/YelpRecommendationSystem/Dataset/yelp_academic_dataset_user.json"
 userDatasetFileHandle <- file(userDatasetFile,open="r")
 userDatasetFileLines <- readLines(userDatasetFileHandle)
 numberOfUsers <- length(userDatasetFileLines)
@@ -26,8 +27,12 @@ for (i in 1:numberOfUsers) {
 	users[i] <- userJSON$user_id
 }
 close(userDatasetFileHandle)
+closeAllConnections()
+remove('userDatasetFile', 'userDatasetFileHandle', 'userDatasetFileLines', 'userJSON')
+cleanMem()
 
-reviewDatasetFile <- "Dataset/yelp_academic_dataset_review.json"
+ptm <- proc.time()
+reviewDatasetFile <- "/Users/praphull/gitrepos/YelpRecommendationSystem/Dataset/yelp_academic_dataset_review.json"
 reviewDatasetFileHandle <- file(reviewDatasetFile,open="r")
 reviewDatasetFileLines <- readLines(reviewDatasetFileHandle)
 numberOfReviews <- length(reviewDatasetFileLines)
@@ -38,6 +43,52 @@ for (i in 1:numberOfReviews) {
 }
 close(reviewDatasetFileHandle)
 closeAllConnections()
-remove('businessDatasetFileLines', 'userDatasetFileLines', 'reviewDatasetFileLines')
+remove('reviewDatasetFile', 'reviewDatasetFileHandle', 'reviewDatasetFileLines', 'reviewJSON')
+cleanMem()
+proc.time() - ptm
 
-reviews.svd <- svd(reviews)
+ptm <- proc.time()
+reviewsSVDRank50 <- irlba(reviews, nu=50, nv=50)
+proc.time() - ptm
+
+cleanMem()
+
+reviewsSVDRank50$D <- diag(reviewsSVDRank50$d)
+
+ptm <- proc.time()
+weightMatrix <- matrix(0,nrow=numberOfUsers,ncol=numberOfBusinesses)
+Wlocations <- which (reviews != 0, arr.ind=T)
+for (i in 1:dim(Wlocations)[1]) {
+	weightMatrix[Wlocations[i,1], Wlocations[i,2]] = 1
+}
+remove('Wlocations')
+cleanMem()
+proc.time() - ptm
+
+minRank <- 0
+minNorm <- -1
+
+ptm <- proc.time()
+for (i in 2:50) {
+	LRARank <- reviewsSVDRank50$u[,1:i] %*% reviewsSVDRank50$D[1:i,1:i] %*% t(reviewsSVDRank50$v[,1:i])
+	fNorm <- norm((reviews - (LRARank * weightMatrix)), "F")
+	cat ("Fnorm for Rank ", i, " = ", fNorm, "\n")
+	if (minNorm == -1) {
+		minNorm <- fNorm
+		minRank <- i
+	} else if (minNorm > fNorm) {
+		minNorm <- fNorm
+		minRank <- i
+	}
+	cleanMem()
+}
+remove('LRARank', 'fNorm')
+
+proc.time() - ptm
+
+cat("\n\n")
+cat("***************")
+cat("Rank with minimum fNorm is ", minNorm, "\n")
+cat("Lowest fNorm is ", minRank, "\n")
+cat("***************")
+cat("\n\n")
