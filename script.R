@@ -1,8 +1,6 @@
 library("rjson")
 library("irlba")
 
-cleanMem <- function(n=10) { for (i in 1:n) gc() }
-
 businessDatasetFile <- "/Users/praphull/gitrepos/YelpRecommendationSystem/Dataset/yelp_academic_dataset_business.json"
 businessDatasetFileHandle <- file(businessDatasetFile,open="r")
 businessDatasetFileLines <- readLines(businessDatasetFileHandle)
@@ -15,7 +13,7 @@ for (i in 1:numberOfBusinesses) {
 close(businessDatasetFileHandle)
 closeAllConnections()
 remove('businessDatasetFile', 'businessDatasetFileHandle', 'businessDatasetFileLines', 'businessJSON')
-cleanMem()
+gc()
 
 userDatasetFile <- "/Users/praphull/gitrepos/YelpRecommendationSystem/Dataset/yelp_academic_dataset_user.json"
 userDatasetFileHandle <- file(userDatasetFile,open="r")
@@ -29,7 +27,7 @@ for (i in 1:numberOfUsers) {
 close(userDatasetFileHandle)
 closeAllConnections()
 remove('userDatasetFile', 'userDatasetFileHandle', 'userDatasetFileLines', 'userJSON')
-cleanMem()
+gc()
 
 ptm <- proc.time()
 reviewDatasetFile <- "/Users/praphull/gitrepos/YelpRecommendationSystem/Dataset/yelp_academic_dataset_review.json"
@@ -44,16 +42,20 @@ for (i in 1:numberOfReviews) {
 close(reviewDatasetFileHandle)
 closeAllConnections()
 remove('reviewDatasetFile', 'reviewDatasetFileHandle', 'reviewDatasetFileLines', 'reviewJSON')
-cleanMem()
-proc.time() - ptm
+gc()
+ptm <- proc.time() - ptm
+cat ("Time taken to build the reviews matrix\n")
+print(ptm)
 
 ptm <- proc.time()
-reviewsSVDRank50 <- irlba(reviews, nu=50, nv=50)
-proc.time() - ptm
+reviewsSVDRank100 <- irlba(reviews, nu=100, nv=100)
+ptm <- proc.time() - ptm
+cat ("Time taken to perform SVD using irlba\n")
+print(ptm)
 
-cleanMem()
+gc()
 
-reviewsSVDRank50$D <- diag(reviewsSVDRank50$d)
+reviewsSVDRank100$D <- diag(reviewsSVDRank100$d)
 
 ptm <- proc.time()
 weightMatrix <- matrix(0,nrow=numberOfUsers,ncol=numberOfBusinesses)
@@ -62,15 +64,17 @@ for (i in 1:dim(Wlocations)[1]) {
 	weightMatrix[Wlocations[i,1], Wlocations[i,2]] = 1
 }
 remove('Wlocations')
-cleanMem()
-proc.time() - ptm
+gc()
+ptm <- proc.time() - ptm
+cat ("Time taken to calculate weight matrix\n")
+print(ptm)
 
 minRank <- 0
 minNorm <- -1
 
 ptm <- proc.time()
 for (i in 2:50) {
-	LRARank <- reviewsSVDRank50$u[,1:i] %*% reviewsSVDRank50$D[1:i,1:i] %*% t(reviewsSVDRank50$v[,1:i])
+	LRARank <- reviewsSVDRank100$u[,1:i] %*% reviewsSVDRank100$D[1:i,1:i] %*% t(reviewsSVDRank100$v[,1:i])
 	fNorm <- norm((reviews - (LRARank * weightMatrix)), "F")
 	cat ("Fnorm for Rank ", i, " = ", fNorm, "\n")
 	if (minNorm == -1) {
@@ -80,11 +84,13 @@ for (i in 2:50) {
 		minNorm <- fNorm
 		minRank <- i
 	}
-	cleanMem()
+	gc()
 }
 remove('LRARank', 'fNorm')
 
-proc.time() - ptm
+ptm <- proc.time() - ptm
+cat ("Time taken to calculate fnorm for each rank\n")
+print(ptm)
 
 cat("\n\n")
 cat("***************")
