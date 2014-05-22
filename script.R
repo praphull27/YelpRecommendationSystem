@@ -1,7 +1,7 @@
 library("rjson")
 library("irlba")
 
-businessDatasetFile <- "/Users/praphull/gitrepos/YelpRecommendationSystem/Dataset/yelp_academic_dataset_business.json"
+businessDatasetFile <- "Dataset/yelp_academic_dataset_business.json"
 businessDatasetFileHandle <- file(businessDatasetFile,open="r")
 businessDatasetFileLines <- readLines(businessDatasetFileHandle)
 numberOfBusinesses <- length(businessDatasetFileLines)
@@ -15,7 +15,7 @@ closeAllConnections()
 remove('businessDatasetFile', 'businessDatasetFileHandle', 'businessDatasetFileLines', 'businessJSON')
 gc()
 
-userDatasetFile <- "/Users/praphull/gitrepos/YelpRecommendationSystem/Dataset/yelp_academic_dataset_user.json"
+userDatasetFile <- "Dataset/yelp_academic_dataset_user.json"
 userDatasetFileHandle <- file(userDatasetFile,open="r")
 userDatasetFileLines <- readLines(userDatasetFileHandle)
 numberOfUsers <- length(userDatasetFileLines)
@@ -30,7 +30,7 @@ remove('userDatasetFile', 'userDatasetFileHandle', 'userDatasetFileLines', 'user
 gc()
 
 ptm <- proc.time()
-reviewDatasetFile <- "/Users/praphull/gitrepos/YelpRecommendationSystem/Dataset/yelp_academic_dataset_review.json"
+reviewDatasetFile <- "Dataset/yelp_academic_dataset_review.json"
 reviewDatasetFileHandle <- file(reviewDatasetFile,open="r")
 reviewDatasetFileLines <- readLines(reviewDatasetFileHandle)
 numberOfReviews <- length(reviewDatasetFileLines)
