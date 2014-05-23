@@ -52,3 +52,7 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+.RData
+.DS_Store
+.Rapp.history
+
