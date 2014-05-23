@@ -47,6 +47,8 @@ ptm <- proc.time() - ptm
 cat ("Time taken to build the reviews matrix\n")
 print(ptm)
 
+save.image()
+
 ptm <- proc.time()
 reviewsSVDRank100 <- irlba(reviews, nu=100, nv=100)
 ptm <- proc.time() - ptm
@@ -56,6 +58,8 @@ print(ptm)
 gc()
 
 reviewsSVDRank100$D <- diag(reviewsSVDRank100$d)
+
+save.image()
 
 ptm <- proc.time()
 weightMatrix <- matrix(0,nrow=numberOfUsers,ncol=numberOfBusinesses)
@@ -87,6 +91,8 @@ for (i in 2:50) {
 	gc()
 }
 remove('LRARank', 'fNorm')
+
+save.image()
 
 ptm <- proc.time() - ptm
 cat ("Time taken to calculate fnorm for each rank\n")
