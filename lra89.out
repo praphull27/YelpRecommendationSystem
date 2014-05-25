@@ -1,0 +1,231 @@
+
+R version 3.1.0 (2014-04-10) -- "Spring Dance"
+Copyright (C) 2014 The R Foundation for Statistical Computing
+Platform: x86_64-unknown-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+> library("rjson")
+> library("irlba")
+> 
+> businessDatasetFile <- "Dataset/yelp_academic_dataset_business.json"
+> businessDatasetFileHandle <- file(businessDatasetFile,open="r")
+> businessDatasetFileLines <- readLines(businessDatasetFileHandle)
+> numberOfBusinesses <- length(businessDatasetFileLines)
+> businesses <- matrix(,nrow=1,ncol=numberOfBusinesses)
+> for (i in 1:numberOfBusinesses) {
++ 	businessJSON <- fromJSON(businessDatasetFileLines[i],method="C")
++ 	businesses[i] <- businessJSON$business_id
++ }
+> close(businessDatasetFileHandle)
+> closeAllConnections()
+> remove('businessDatasetFile', 'businessDatasetFileHandle', 'businessDatasetFileLines', 'businessJSON')
+> gc()
+          used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 1064531 56.9    1710298 91.4  1406117 75.1
+Vcells 1640575 12.6    4470640 34.2  4181561 32.0
+> 
+> userDatasetFile <- "Dataset/yelp_academic_dataset_user.json"
+> userDatasetFileHandle <- file(userDatasetFile,open="r")
+> userDatasetFileLines <- readLines(userDatasetFileHandle)
+> numberOfUsers <- length(userDatasetFileLines)
+> users <- matrix(,nrow=1,ncol=numberOfUsers)
+> for (i in 1:numberOfUsers) {
++ 	userJSON <- fromJSON(userDatasetFileLines[i],method="C")
++ 	users[i] <- userJSON$user_id
++ }
+> close(userDatasetFileHandle)
+> closeAllConnections()
+> remove('userDatasetFile', 'userDatasetFileHandle', 'userDatasetFileLines', 'userJSON')
+> gc()
+          used (Mb) gc trigger (Mb) max used (Mb)
+Ncells 1135349 60.7    1835812 98.1  1835812 98.1
+Vcells 2060082 15.8    7349357 56.1  6919706 52.8
+> 
+> ptm <- proc.time()
+> reviewDatasetFile <- "Dataset/yelp_academic_dataset_review.json"
+> reviewDatasetFileHandle <- file(reviewDatasetFile,open="r")
+> reviewDatasetFileLines <- readLines(reviewDatasetFileHandle)
+> numberOfReviews <- length(reviewDatasetFileLines)
+> reviews <- matrix(0,nrow=numberOfUsers,ncol=numberOfBusinesses)
+> for (i in 1:numberOfReviews) {
++ 	reviewJSON <- fromJSON(reviewDatasetFileLines[i],method="C")
++ 	reviews[which(users==reviewJSON$user_id, arr.ind=TRUE)[2], which(businesses==reviewJSON$business_id, arr.ind=TRUE)[2]] <- reviewJSON$stars
++ }
+> close(reviewDatasetFileHandle)
+> closeAllConnections()
+> remove('reviewDatasetFile', 'reviewDatasetFileHandle', 'reviewDatasetFileLines', 'reviewJSON')
+> gc()
+             used   (Mb) gc trigger    (Mb)   max used   (Mb)
+Ncells    1135621   60.7    2251281   120.3    2251281  120.3
+Vcells 1106136698 8439.2 1647752592 12571.4 1285875890 9810.5
+> ptm <- proc.time() - ptm
+> cat ("Time taken to build the reviews matrix\n")
+Time taken to build the reviews matrix
+> print(ptm)
+   user  system elapsed 
+947.162   2.515 949.913 
+> 
+> ptm <- proc.time()
+> reviewsSVDRank100 <- irlba(reviews, nu=100, nv=100)
+> ptm <- proc.time() - ptm
+> cat ("Time taken to perform SVD using irlba\n")
+Time taken to perform SVD using irlba
+> print(ptm)
+    user   system  elapsed 
+2949.866    5.343 2957.830 
+> 
+> gc()
+             used   (Mb) gc trigger    (Mb)   max used    (Mb)
+Ncells    1139614   60.9    2251281   120.3    2251281   120.3
+Vcells 1114779827 8505.1 1647752592 12571.4 1647513943 12569.6
+> 
+> reviewsSVDRank100$D <- diag(reviewsSVDRank100$d)
+> 
+> ptm <- proc.time()
+> weightMatrix <- matrix(0,nrow=numberOfUsers,ncol=numberOfBusinesses)
+> Wlocations <- which (reviews != 0, arr.ind=T)
+> for (i in 1:dim(Wlocations)[1]) {
++ 	weightMatrix[Wlocations[i,1], Wlocations[i,2]] = 1
++ }
+> remove('Wlocations')
+> gc()
+             used    (Mb) gc trigger    (Mb)   max used    (Mb)
+Ncells    1139636    60.9    2251281   120.3    2251281   120.3
+Vcells 2218472778 16925.7 3488508643 26615.3 3324007795 25360.2
+> ptm <- proc.time() - ptm
+> cat ("Time taken to calculate weight matrix\n")
+Time taken to calculate weight matrix
+> print(ptm)
+   user  system elapsed 
+ 26.507   2.324  28.849 
+> 
+> save.image()
+> 
+> minRank <- 0
+> minNorm <- -1
+> 
+> ptm <- proc.time()
+> for (i in 2:100) {
++ 	u <- reviewsSVDRank100$u[,1:i]
++ 	D <- reviewsSVDRank100$D[1:i,1:i]
++ 	v <- t(reviewsSVDRank100$v[,1:i])
++ 	T <- D %*% v
++ 	remove('D', 'v')
++ 	LRARank <- u %*% T
++ 	remove('u', 'T')
++ 	W <- LRARank * weightMatrix
++ 	diff <- reviews - W
++ 	remove('W')
++ 	fNorm <- norm(diff, "F")
++ 	remove('diff')
++ 	cat ("Fnorm for Rank ", i, " = ", fNorm, "\n")
++ 	if (minNorm == -1) {
++ 		minNorm <- fNorm
++ 		minRank <- i
++ 	} else if (minNorm > fNorm) {
++ 		minNorm <- fNorm
++ 		minRank <- i
++ 	}
++ 	gc()
++ }
+Fnorm for Rank  2  =  2212.238 
+Fnorm for Rank  3  =  2203.021 
+Fnorm for Rank  4  =  2196.231 
+Fnorm for Rank  5  =  2189.701 
+Fnorm for Rank  6  =  2185.362 
+Fnorm for Rank  7  =  2180.565 
+Fnorm for Rank  8  =  2176.264 
+Fnorm for Rank  9  =  2172.774 
+Fnorm for Rank  10  =  2169.516 
+Fnorm for Rank  11  =  2165.905 
+Fnorm for Rank  12  =  2162.528 
+Fnorm for Rank  13  =  2158.462 
+Fnorm for Rank  14  =  2154.655 
+Fnorm for Rank  15  =  2151.144 
+Fnorm for Rank  16  =  2147.783 
+Fnorm for Rank  17  =  2144.401 
+Fnorm for Rank  18  =  2140.994 
+Fnorm for Rank  19  =  2137.692 
+Fnorm for Rank  20  =  2135.169 
+Fnorm for Rank  21  =  2132.556 
+Fnorm for Rank  22  =  2129.933 
+Fnorm for Rank  23  =  2127.113 
+Fnorm for Rank  24  =  2124.205 
+Fnorm for Rank  25  =  2121.595 
+Fnorm for Rank  26  =  2118.878 
+Fnorm for Rank  27  =  2116.172 
+Fnorm for Rank  28  =  2113.65 
+Fnorm for Rank  29  =  2111.416 
+Fnorm for Rank  30  =  2108.831 
+Fnorm for Rank  31  =  2106.169 
+Fnorm for Rank  32  =  2103.64 
+Fnorm for Rank  33  =  2101.247 
+Fnorm for Rank  34  =  2098.853 
+Fnorm for Rank  35  =  2096.285 
+Fnorm for Rank  36  =  2094.132 
+Fnorm for Rank  37  =  2091.674 
+Fnorm for Rank  38  =  2089.382 
+Fnorm for Rank  39  =  2087.4 
+Fnorm for Rank  40  =  2085.045 
+Fnorm for Rank  41  =  2082.754 
+Fnorm for Rank  42  =  2080.549 
+Fnorm for Rank  43  =  2078.367 
+Fnorm for Rank  44  =  2076.104 
+Fnorm for Rank  45  =  2074 
+Fnorm for Rank  46  =  2071.84 
+Fnorm for Rank  47  =  2069.627 
+Fnorm for Rank  48  =  2067.429 
+Fnorm for Rank  49  =  2065.347 
+Fnorm for Rank  50  =  2063.288 
+Fnorm for Rank  51  =  2061.265 
+Fnorm for Rank  52  =  2058.95 
+Fnorm for Rank  53  =  2056.971 
+Fnorm for Rank  54  =  2054.85 
+Fnorm for Rank  55  =  2052.86 
+Fnorm for Rank  56  =  2050.797 
+Fnorm for Rank  57  =  2048.757 
+Fnorm for Rank  58  =  2046.782 
+Fnorm for Rank  59  =  2044.891 
+Fnorm for Rank  60  =  2042.791 
+Fnorm for Rank  61  =  2040.898 
+Fnorm for Rank  62  =  2039.1 
+Fnorm for Rank  63  =  2037.055 
+Fnorm for Rank  64  =  2035.246 
+Fnorm for Rank  65  =  2033.39 
+Fnorm for Rank  66  =  2031.381 
+Fnorm for Rank  67  =  2029.5 
+Fnorm for Rank  68  =  2027.547 
+Fnorm for Rank  69  =  2025.653 
+Fnorm for Rank  70  =  2023.78 
+Fnorm for Rank  71  =  2021.837 
+Fnorm for Rank  72  =  2020.136 
+Fnorm for Rank  73  =  2018.346 
+Fnorm for Rank  74  =  2016.606 
+Fnorm for Rank  75  =  2014.88 
+Fnorm for Rank  76  =  2013.154 
+Fnorm for Rank  77  =  2011.349 
+Fnorm for Rank  78  =  2009.553 
+Fnorm for Rank  79  =  2007.801 
+Fnorm for Rank  80  =  2006.103 
+Fnorm for Rank  81  =  2004.303 
+Fnorm for Rank  82  =  2002.558 
+Fnorm for Rank  83  =  2000.846 
+Fnorm for Rank  84  =  1999.049 
+Fnorm for Rank  85  =  1997.305 
+Fnorm for Rank  86  =  1995.557 
+Fnorm for Rank  87  =  1993.929 
+Fnorm for Rank  88  =  1992.276 
+Fnorm for Rank  89  =  1990.576 
