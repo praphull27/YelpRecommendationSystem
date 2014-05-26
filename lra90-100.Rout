@@ -1,0 +1,70 @@
+
+R version 3.1.0 (2014-04-10) -- "Spring Dance"
+Copyright (C) 2014 The R Foundation for Statistical Computing
+Platform: x86_64-unknown-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> Wlocations <- which (reviews != 0, arr.ind=T)
+> 
+> minRank <- 0
+> minNorm <- 3000
+> 
+> ptm <- proc.time()
+> for (i in 90:100) {
++ 	u <- reviewsSVDRank100$u[,1:i]
++ 	D <- reviewsSVDRank100$d[1:i]
++ 	v <- t(reviewsSVDRank100$v[,1:i])
++ 	T <- u * D
++ 	remove('u', 'D')
++ 	LRARank <- T %*% v
++ 	remove('T', 'v')
++ 
++ 	sum <- 0
++ 	for (j in 1:dim(Wlocations)[1]) {
++ 		sum = sum + (reviews[Wlocations[j,1], Wlocations[j,2]] - LRARank[Wlocations[j,1], Wlocations[j,2]])^2
++ 	}
++ 	fNorm <- sqrt(sum)
++ 	cat ("Fnorm for Rank ", i, " = ", fNorm, "\n")
++ 	if (minNorm > fNorm) {
++ 		minNorm <- fNorm
++ 		minRank <- i
++ 		minLRAmatrix <- LRARank
++ 	}
++ 	remove('LRARank')
++ }
+Fnorm for Rank  90  =  2004.559 
+Fnorm for Rank  91  =  2002.971 
+Fnorm for Rank  92  =  2003.136 
+Fnorm for Rank  93  =  1999.883 
+Fnorm for Rank  94  =  1997.764 
+Fnorm for Rank  95  =  1995.937 
+Fnorm for Rank  96  =  1994.273 
+Fnorm for Rank  97  =  1992.893 
+Fnorm for Rank  98  =  1991.347 
+Fnorm for Rank  99  =  1989.392 
+Fnorm for Rank  100  =  1987.459 
+> ptm <- proc.time() - ptm
+> print (ptm)
+    user   system  elapsed 
+1823.918   52.603 2263.842 
+> 
+> save.image()
+Error in save(list = ls(envir = .GlobalEnv, all.names = TRUE), file = outfile,  : 
+  error writing to connection
+Calls: save.image -> save
+Execution halted
