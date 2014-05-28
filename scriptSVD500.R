@@ -48,27 +48,25 @@ cat ("Time taken to build the reviews matrix\n")
 print(ptm)
 
 ptm <- proc.time()
-reviewsSVDRank2 <- irlba(reviews, nu=2, nv=2)
+reviewsSVDRank500 <- irlba(reviews, nu=500, nv=500)
 ptm <- proc.time() - ptm
 cat ("Time taken to perform SVD using irlba\n")
 print(ptm)
 
 gc()
 
-save(list = ls(all = TRUE), file = "SVD2.RData")
+save(list = ls(all = TRUE), file = "SVD500.RData")
 
 Wlocations <- which (reviews != 0, arr.ind=T)
 
 minRank <- 0
 minNorm <- 10000
-minLRAmatrix <- matrix(0,nrow=numberOfUsers,ncol=numberOfBusinesses)
-
 
 ptm <- proc.time()
-for (i in 1:2) {
-	u <- reviewsSVDRank2$u[,1:i]
-	D <- reviewsSVDRank2$d[1:i]
-	v <- t(reviewsSVDRank2$v[,1:i])
+for (i in 1:500) {
+	u <- reviewsSVDRank500$u[,1:i]
+	D <- reviewsSVDRank500$d[1:i]
+	v <- t(reviewsSVDRank500$v[,1:i])
 	T <- u * D
 	remove('u', 'D')
 	LRARank <- T %*% v
@@ -84,7 +82,6 @@ for (i in 1:2) {
 	if (minNorm > fNorm) {
 		minNorm <- fNorm
 		minRank <- i
-		minLRAmatrix <- LRARank
 	}
 	remove('LRARank', 'fNorm', 'sum')
 	gc()
@@ -92,4 +89,4 @@ for (i in 1:2) {
 ptm <- proc.time() - ptm
 print (ptm)
 
-save(list = ls(all = TRUE), file = "SVD2withLRA.RData")
+save(list = ls(all = TRUE), file = "SVD500withLRA.RData")
