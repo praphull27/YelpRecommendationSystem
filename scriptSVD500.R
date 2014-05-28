@@ -48,15 +48,48 @@ cat ("Time taken to build the reviews matrix\n")
 print(ptm)
 
 ptm <- proc.time()
-reviewsSVDRank500 <- irlba(reviews, nu=500, nv=500)
+reviewsSVDRank2 <- irlba(reviews, nu=2, nv=2)
 ptm <- proc.time() - ptm
 cat ("Time taken to perform SVD using irlba\n")
 print(ptm)
 
 gc()
 
-reviewsSVDRank500$D <- diag(reviewsSVDRank500$d)
+save(list = ls(all = TRUE), file = "SVD2.RData")
 
 Wlocations <- which (reviews != 0, arr.ind=T)
 
-save.image()
+minRank <- 0
+minNorm <- 10000
+minLRAmatrix <- matrix(0,nrow=numberOfUsers,ncol=numberOfBusinesses)
+
+
+ptm <- proc.time()
+for (i in 1:2) {
+	u <- reviewsSVDRank2$u[,1:i]
+	D <- reviewsSVDRank2$d[1:i]
+	v <- t(reviewsSVDRank2$v[,1:i])
+	T <- u * D
+	remove('u', 'D')
+	LRARank <- T %*% v
+	remove('T', 'v')
+
+	sum <- 0
+	for (j in 1:dim(Wlocations)[1]) {
+		sum = sum + (reviews[Wlocations[j,1], Wlocations[j,2]] - LRARank[Wlocations[j,1], Wlocations[j,2]])^2
+	}
+	fNorm <- sqrt(sum)
+	cat ("Fnorm for Rank ", i, " = ", fNorm, "\n")
+
+	if (minNorm > fNorm) {
+		minNorm <- fNorm
+		minRank <- i
+		minLRAmatrix <- LRARank
+	}
+	remove('LRARank', 'fNorm', 'sum')
+	gc()
+}
+ptm <- proc.time() - ptm
+print (ptm)
+
+save(list = ls(all = TRUE), file = "SVD2withLRA.RData")
